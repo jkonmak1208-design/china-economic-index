@@ -1,0 +1,40 @@
+# Economic Sentiment Index Configuration
+# Copy this file to settings.yaml and fill in your API key
+
+# FRED API settings
+fred:
+  api_key: ""  # Get free key from https://fred.stlouisfed.org/docs/api/api_key.html
+  series:
+    usd_cny: "DEXCHUS"
+    vix: "VIXCLS"
+    china_cpi: "CHNCPIALLMINMEI"
+    yield_curve: "T10Y2Y"
+
+# Google Trends settings
+google_trends:
+  queries:
+    - "China economy"
+    - "中国经济"
+    - "trade war China"
+    - "China stimulus"
+  timeframe: "today 5-y"
+
+# Scraping settings
+scraping:
+  sina:
+    max_articles: 100
+    base_url: "https://finance.sina.com.cn"
+  eastmoney:
+    max_articles: 100
+    base_url: "https://finance.eastmoney.com"
+
+# Index parameters
+index:
+  normalization_window: 24
+  pca_min_months: 18
+  pca_recalibration: 3
+  pca_window: 24
+
+# Database
+database:
+  path: "data/index.db"

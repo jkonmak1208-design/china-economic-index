@@ -1,0 +1,13 @@
+pyyaml
+jieba
+snownlp
+fredapi
+pytrends
+requests
+beautifulsoup4
+lxml
+numpy
+pandas
+scipy
+streamlit
+plotly

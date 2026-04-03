@@ -1,0 +1,29 @@
+{
+  "latest": {
+    "month": "2025-03",
+    "sentiment_raw": 0.6533418133738477,
+    "keyword_net": 0.0,
+    "keyword_uncertainty": 1.7137960582690661,
+    "usd_cny_change": -0.3324317790377667,
+    "vix_avg": 21.841428571428565,
+    "china_cpi_yoy": -0.09676543104876578,
+    "google_trends": 7.0,
+    "composite_index": 65.33,
+    "pc1_variance_explained": null,
+    "updated_at": "2026-04-03T01:56:38.101073"
+  },
+  "previous": {
+    "month": "2025-02",
+    "sentiment_raw": null,
+    "keyword_net": null,
+    "keyword_uncertainty": null,
+    "usd_cny_change": -0.3052266547778896,
+    "vix_avg": 16.968,
+    "china_cpi_yoy": -0.7676953652640052,
+    "google_trends": 6.8125,
+    "composite_index": 34.5,
+    "pc1_variance_explained": 0.5214457744380067,
+    "updated_at": "2026-04-03T02:01:25.678139"
+  },
+  "delta": 30.83
+}

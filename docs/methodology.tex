@@ -1,0 +1,473 @@
+\documentclass[11pt]{article}
+
+% ---------- packages ----------
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{natbib}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{CJKutf8}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    citecolor=blue!60!black,
+    urlcolor=blue!60!black
+}
+
+% ---------- title ----------
+\title{China Economic Sentiment Index:\\
+Construction Methodology and Technical Documentation}
+
+\author{Economic Index Research Team}
+
+\date{April 2026}
+
+\begin{document}
+\maketitle
+
+% ============================================================
+\begin{abstract}
+\noindent
+This document describes the construction methodology of the China
+Economic Sentiment Index
+(\begin{CJK}{UTF8}{gbsn}经济财经舆情指数\end{CJK}),
+a monthly composite indicator measuring economic and financial
+sentiment in China.  The index combines NLP-based news sentiment
+analysis, keyword frequency tracking across Chinese financial media,
+and principal component analysis (PCA) of seven sub-indicators drawn
+from text data, macroeconomic series, and internet search trends.  The
+index is scaled to $[0,100]$, with 50 representing neutral sentiment.
+We provide full transparency on data sources, text processing,
+sub-indicator construction, and the PCA aggregation procedure to
+ensure reproducibility.
+\end{abstract}
+
+% ============================================================
+\section{Introduction}\label{sec:intro}
+
+Timely measurement of economic sentiment is valuable for
+policymakers, investors, and researchers seeking to understand shifts
+in expectations before they appear in official statistics.  For China,
+the world's second-largest economy, sentiment tracking is particularly
+important given the speed at which policy signals propagate through
+financial media and the limited frequency of many official data
+releases.
+
+This document describes the China Economic Sentiment Index (CESI), a
+monthly composite index designed to provide a transparent, reproducible
+measure of China's economic and financial sentiment.  The index
+ranges from 0 to 100, where 50 denotes neutral sentiment, values
+above 50 indicate net optimism, and values below 50 indicate net
+pessimism.
+
+The index is updated monthly and combines three layers of information:
+(i)~NLP-based sentiment scores derived from Chinese financial news
+headlines, (ii)~keyword frequency analysis tracking the prevalence of
+positive, negative, and uncertainty-related economic terms, and
+(iii)~macroeconomic and attention indicators sourced from FRED and
+Google Trends.  These sub-indicators are aggregated via principal
+component analysis into a single composite score.
+
+The CESI contributes to the growing literature on text-based economic
+indicators by focusing specifically on Chinese-language financial
+media.  It complements existing measures such as the Purchasing
+Managers' Index (PMI), consumer confidence surveys, and the
+Baker--Bloom--Davis Economic Policy Uncertainty Index by offering a
+higher-frequency, media-derived perspective on sentiment.
+
+The remainder of this document is organized as follows.
+Section~\ref{sec:data} describes the data sources.
+Section~\ref{sec:method} details the three-layer construction
+methodology.  Section~\ref{sec:results} presents backfilled results.
+Section~\ref{sec:storage} discusses storage and reproducibility.
+Section~\ref{sec:interp} provides an interpretation guide.
+Section~\ref{sec:limitations} notes limitations, and
+Section~\ref{sec:validation} outlines the validation approach.
+
+% ============================================================
+\section{Data Sources}\label{sec:data}
+
+The index draws on three categories of data: news text from Chinese
+financial portals, macroeconomic indicators retrieved from the FRED
+API, and internet search attention data from Google Trends.
+
+% ------ 2.1 ------
+\subsection{News Text Sources}\label{sec:data:news}
+
+We scrape headlines and lead paragraphs from two major Chinese
+financial news portals at the end of each calendar month.
+
+\paragraph{Sina Finance
+(\begin{CJK}{UTF8}{gbsn}新浪财经\end{CJK}).}
+Headlines and lead paragraphs are collected from
+\texttt{finance.sina.com.cn} section pages covering macroeconomics,
+equities, and foreign exchange.  Each monthly scrape yields
+approximately 100 articles.
+
+\paragraph{East Money
+(\begin{CJK}{UTF8}{gbsn}东方财富\end{CJK}).}
+Headlines are scraped from \texttt{finance.eastmoney.com} listing
+pages spanning the macro, stock, and finance sections.  Each monthly
+scrape yields approximately 100 articles.
+
+Both sources are scraped once at month-end using Python
+\texttt{requests} and \texttt{BeautifulSoup}.
+
+% ------ 2.2 ------
+\subsection{Macroeconomic Indicators}\label{sec:data:macro}
+
+Four macroeconomic series are retrieved from the Federal Reserve
+Economic Data (FRED) API, as summarized in Table~\ref{tab:fred}.
+Daily series are averaged to monthly frequency.
+
+\begin{table}[H]
+\centering
+\caption{Macroeconomic indicators from FRED}
+\label{tab:fred}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Series & FRED ID & Frequency & Description \\
+\midrule
+USD/CNY Exchange Rate & \texttt{DEXCHUS} & Daily $\to$ Monthly avg
+  & Spot exchange rate \\
+CBOE VIX Index & \texttt{VIXCLS} & Daily $\to$ Monthly avg
+  & Global risk appetite proxy \\
+China CPI & \texttt{CHNCPIALLMINMEI} & Monthly
+  & Consumer price index, all items \\
+US Yield Curve & \texttt{T10Y2Y} & Daily $\to$ Monthly avg
+  & 10Y--2Y Treasury spread \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ------ 2.3 ------
+\subsection{Google Trends}\label{sec:data:gtrends}
+
+We retrieve monthly Google Trends data for four queries: ``China
+economy,'' ``\begin{CJK}{UTF8}{gbsn}中国经济\end{CJK},'' ``trade war
+China,'' and ``China stimulus.''  Data are obtained at monthly
+resolution via the \texttt{pytrends} Python library.  The attention
+sub-indicator is the arithmetic mean of the interest scores across all
+four queries.
+
+% ============================================================
+\section{Methodology}\label{sec:method}
+
+The index is constructed in three layers: NLP sentiment scoring
+(Section~\ref{sec:method:nlp}), keyword frequency analysis
+(Section~\ref{sec:method:keyword}), and PCA-based aggregation
+(Section~\ref{sec:method:pca}).
+
+% ------ 3.1 ------
+\subsection{Layer 1: NLP Sentiment Scoring}\label{sec:method:nlp}
+
+Each scraped article is processed through the following pipeline:
+
+\begin{enumerate}[nosep]
+  \item \textbf{HTML and URL removal.}  Raw HTML tags and embedded
+    URLs are stripped from the text.
+  \item \textbf{Chinese text segmentation.}  The cleaned text is
+    segmented into tokens using the \texttt{jieba} library.
+  \item \textbf{Stopword removal.}  A standard Chinese stopword list
+    is applied to remove function words and other uninformative tokens.
+  \item \textbf{Sentiment scoring.}  Each article is scored using the
+    \texttt{SnowNLP} library, which returns a score $s_j \in [0,1]$,
+    where $0$ denotes very negative sentiment and $1$ denotes very
+    positive sentiment.
+\end{enumerate}
+
+The monthly NLP sentiment sub-index is the arithmetic mean of all
+article-level scores in month~$t$:
+\begin{equation}\label{eq:nlp}
+  S_t = \frac{1}{N_t} \sum_{j=1}^{N_t} s_{j,t},
+\end{equation}
+where $N_t$ is the number of articles scraped in month~$t$.
+
+% ------ 3.2 ------
+\subsection{Layer 2: Keyword Frequency Analysis}\label{sec:method:keyword}
+
+We track the occurrence of keywords in three categories within each
+month's corpus.  All keywords are matched after \texttt{jieba}
+segmentation of the full text corpus.
+
+\paragraph{Positive keywords (20).}
+\begin{CJK}{UTF8}{gbsn}
+经济复苏, 刺激政策, 消费回暖, 稳增长, 降准, 降息, 新质生产力,
+高质量发展, 外资流入, 出口增长, 经济企稳, 回升向好, 逆周期调节,
+扩大内需, 减税降费, 营商环境优化, 就业改善, 消费升级, 产业升级,
+科技创新.
+\end{CJK}
+
+\paragraph{Negative keywords (20).}
+\begin{CJK}{UTF8}{gbsn}
+经济下行, 通缩, 失业, 债务危机, 资本外流, 房地产危机, 产能过剩,
+制裁, 贸易战, 金融风险, 暴雷, 违约, 经济放缓, 通货膨胀, 滞胀,
+资产泡沫, 系统性风险, 信用收缩, 外需疲软, 供应链中断.
+\end{CJK}
+
+\paragraph{Uncertainty keywords (12).}
+\begin{CJK}{UTF8}{gbsn}
+政策调整, 监管, 不确定性, 改革, 双循环, 共同富裕, 政策转向,
+结构性改革, 宏观审慎, 去杠杆, 防风险, 政策博弈.
+\end{CJK}
+
+\medskip
+For each category, keyword occurrences are counted in the month's
+corpus and normalized by total word count (per 1{,}000~words).  We
+define:
+\begin{align}
+  K_t^{+}   &= \frac{\text{positive keyword count}_t}
+                      {\text{total word count}_t} \times 1{,}000,
+                      \label{eq:kpos} \\
+  K_t^{-}   &= \frac{\text{negative keyword count}_t}
+                      {\text{total word count}_t} \times 1{,}000,
+                      \label{eq:kneg} \\
+  K_t^{unc} &= \frac{\text{uncertainty keyword count}_t}
+                      {\text{total word count}_t} \times 1{,}000.
+                      \label{eq:kunc}
+\end{align}
+The net keyword sentiment sub-indicator is:
+\begin{equation}\label{eq:knet}
+  K_t^{net} = K_t^{+} - K_t^{-}.
+\end{equation}
+
+% ------ 3.3 ------
+\subsection{Layer 3: PCA Composite Index}\label{sec:method:pca}
+
+\subsubsection{Input Variables}
+
+Seven sub-indicators enter the PCA:
+
+\begin{enumerate}[nosep]
+  \item $S_t$: NLP sentiment sub-index (Equation~\ref{eq:nlp}).
+  \item $K_t^{net}$: Net keyword frequency
+    (Equation~\ref{eq:knet}).
+  \item $K_t^{unc}$: Uncertainty keyword frequency
+    (Equation~\ref{eq:kunc}).
+  \item $\Delta FX_t$: USD/CNY monthly percentage change, inverted so
+    that positive values indicate CNY appreciation.
+  \item $VIX_t$: Monthly average VIX level, inverted so that lower
+    risk maps to higher values.
+  \item $\pi_t^{YoY}$: China CPI year-over-year percentage change.
+  \item $GT_t$: Google Trends attention index
+    (Section~\ref{sec:data:gtrends}).
+\end{enumerate}
+
+\subsubsection{Standardization}
+
+All sub-indicators are standardized using a rolling 24-month window:
+\begin{equation}\label{eq:zscore}
+  z_{i,t} = \frac{x_{i,t} - \bar{x}_{i,\,t-24:t}}
+                  {\sigma_{i,\,t-24:t}},
+\end{equation}
+where $\bar{x}_{i,\,t-24:t}$ and $\sigma_{i,\,t-24:t}$ denote the
+mean and standard deviation of sub-indicator~$i$ over the preceding
+24~months (inclusive of month~$t$).
+
+For variables where higher values indicate worse sentiment---USD/CNY
+change showing depreciation, VIX, and keyword uncertainty---signs are
+inverted before standardization.
+
+\subsubsection{Principal Component Extraction}
+
+The composite index is derived from the first principal component
+(PC1) of the correlation matrix of the seven z-scored
+sub-indicators.  Let $\mathbf{Z}_t = (z_{1,t}, \ldots, z_{7,t})'$.
+The correlation matrix is:
+\begin{equation}\label{eq:corr}
+  \mathbf{C} = \text{Corr}(\mathbf{Z}).
+\end{equation}
+We compute the eigendecomposition:
+\begin{equation}\label{eq:eigen}
+  \mathbf{C} = \mathbf{V} \boldsymbol{\Lambda} \mathbf{V}',
+\end{equation}
+where $\boldsymbol{\Lambda} = \text{diag}(\lambda_1, \ldots,
+\lambda_7)$ with $\lambda_1 \geq \cdots \geq \lambda_7$, and
+$\mathbf{V} = [\mathbf{v}_1, \ldots, \mathbf{v}_7]$.
+
+The PC1 loading vector is $\mathbf{w} = \mathbf{v}_1$.  The raw
+composite score for month~$t$ is:
+\begin{equation}\label{eq:pc1}
+  PC1_t = \mathbf{z}_t' \,\mathbf{w}.
+\end{equation}
+
+\paragraph{Sign convention.}  The sign of $\mathbf{w}$ is chosen such
+that $PC1_t$ is positively correlated with the NLP sentiment
+sub-index~$S_t$.
+
+\subsubsection{Rescaling}
+
+The raw PC1 score is mapped to a $[0,100]$ scale:
+\begin{equation}\label{eq:rescale}
+  I_t = \max\!\left(0,\;\min\!\left(100,\;
+        50 + PC1_t \times \frac{50}{3}\right)\right).
+\end{equation}
+This mapping assumes z-scores typically fall in $[-3,3]$, centering
+the index at 50 (neutral).
+
+\subsubsection{Recalibration}
+
+PCA loadings are re-estimated quarterly using the trailing 24~months
+of data.  Between recalibrations, new observations are projected onto
+the existing loading vector~$\mathbf{w}$.  All historical loadings
+are stored in the database for full reproducibility.
+
+\subsubsection{Interim Rule}
+
+Before 18~months of data are available---the minimum for stable PCA
+estimation---the composite is computed as:
+\begin{equation}\label{eq:interim}
+  I_t^{interim} = \max\!\left(0,\;\min\!\left(100,\;
+                  50 + \bar{z}_t \times \frac{50}{3}\right)\right),
+\end{equation}
+where $\bar{z}_t$ is the equal-weighted mean of all available
+z-scored sub-indicators.
+
+% ============================================================
+\section{Backfilled Results}\label{sec:results}
+
+We backfill the index from January 2023 through March 2025 using
+archived news data and historical macroeconomic series.  Over this
+27-month sample, the first principal component explains 52.1\% of
+the total variance in the seven z-scored sub-indicators, indicating
+that more than half of the common variation is captured by a single
+factor.
+
+Table~\ref{tab:variance} summarizes the PCA variance decomposition
+for the most recent quarterly recalibration.
+
+\begin{table}[H]
+\centering
+\caption{PCA variance explained (latest recalibration)}
+\label{tab:variance}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Component & Eigenvalue & Variance explained (\%) \\
+\midrule
+PC1 & 3.647 & 52.1 \\
+PC2 & --- & --- \\
+PC3--PC7 & --- & --- \\
+\bottomrule
+\end{tabular}
+\smallskip
+
+\footnotesize\textit{Note:} Eigenvalues for PC2--PC7 omitted for
+brevity.  The PC1 variance explained of 52.1\% exceeds the 30\%
+minimum target described in Section~\ref{sec:validation}.
+\end{table}
+
+The backfilled series covers a period of notable sentiment variation,
+including post-reopening optimism in early 2023, property-sector
+stress in mid-2023, stimulus expectations in late 2024, and renewed
+trade-policy uncertainty in early 2025.  These episodes provide useful
+variation for validating the index against external benchmarks.
+
+% ============================================================
+\section{Storage and Reproducibility}\label{sec:storage}
+
+All data are stored in a SQLite database located at
+\texttt{data/index.db}.  The database contains four tables:
+
+\begin{enumerate}[nosep]
+  \item \textbf{\texttt{articles}}: Raw scraped text with source,
+    date, and URL metadata.
+  \item \textbf{\texttt{article\_sentiment}}: Article-level sentiment
+    scores from SnowNLP.
+  \item \textbf{\texttt{monthly\_index}}: Monthly composite index
+    values and all sub-indicator values.
+  \item \textbf{\texttt{pca\_params}}: Archived PCA parameters
+    (loadings, means, standard deviations, variance explained) for
+    each recalibration date.
+\end{enumerate}
+
+The full pipeline is deterministic given the same input data: fixing
+the scraped text, FRED series, and Google Trends data uniquely
+determines the index value.
+
+% ============================================================
+\section{Interpretation Guide}\label{sec:interp}
+
+Table~\ref{tab:interp} provides a qualitative interpretation of the
+index.
+
+\begin{table}[H]
+\centering
+\caption{Index interpretation guide}
+\label{tab:interp}
+\begin{tabular}{@{}cl@{}}
+\toprule
+Range & Interpretation \\
+\midrule
+80--100 & Strong optimism \\
+60--80  & Moderately positive \\
+45--55  & Neutral / mixed signals \\
+20--45  & Moderately negative \\
+0--20   & Crisis-level pessimism \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{Limitations}\label{sec:limitations}
+
+Several limitations should be noted when using the CESI.
+
+\begin{enumerate}[nosep]
+  \item \textbf{Sentiment model domain mismatch.}  The SnowNLP
+    library was trained on product reviews, not financial text.  It
+    may misclassify domain-specific expressions---for example,
+    interpreting ``interest rate cut''
+    (\begin{CJK}{UTF8}{gbsn}降息\end{CJK}) as negative due to the
+    word ``cut,'' when it is typically viewed positively in the
+    current Chinese policy context.
+  \item \textbf{Manual keyword curation.}  The positive, negative,
+    and uncertainty keyword lists are manually curated and may not
+    capture newly emerging topics or evolving policy terminology.
+  \item \textbf{Limited article depth.}  News scrapers capture
+    headlines and lead paragraphs only; full article text is not
+    retrieved, potentially missing nuance.
+  \item \textbf{Google Trends geographic bias.}  Google Trends data
+    reflect search behavior on a platform with limited penetration
+    in mainland China, and therefore primarily capture
+    international attention.
+  \item \textbf{Linearity assumption.}  The PCA approach assumes
+    linear relationships among sub-indicators, which may not hold
+    during structural breaks or regime changes.
+\end{enumerate}
+
+% ============================================================
+\section{Validation Approach}\label{sec:validation}
+
+We assess index quality along four dimensions.
+
+\paragraph{Internal consistency.}  We monitor the share of variance
+explained by PC1, targeting a minimum of 30\%.  We also compute
+Cronbach's alpha across the seven sub-indicators to assess internal
+reliability.
+
+\paragraph{External benchmarking.}  The CESI is compared to
+established indicators including the Caixin/Markit Manufacturing PMI,
+the National Bureau of Statistics Consumer Confidence Index, and the
+Baker--Bloom--Davis China Economic Policy Uncertainty Index.  We
+report contemporaneous correlations and lead--lag structures.
+
+\paragraph{Predictive content.}  We conduct Granger causality tests
+to assess whether the CESI contains incremental information for
+forecasting future economic outcomes such as industrial production
+growth, retail sales growth, and equity market returns.
+
+\paragraph{Stability.}  We perform leave-one-out analysis (dropping
+each sub-indicator in turn) and examine rolling-window loading
+stability to ensure that no single sub-indicator dominates the
+composite and that the factor structure is robust over time.
+
+% ============================================================
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="China Economic & Financial Sentiment Index">
+
+    <title>China Economic Sentiment Index</title>
+
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="stylesheet" href="/style.css">
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>China Economic Sentiment Index</h1>
+        <p class="subtitle">经济财经舆情指数</p>
+    </header>
+
+    <!-- Hero metric -->
+    <section id="hero" class="card hero-card">
+        <div class="hero-value">
+            <span id="composite-value">--</span>
+            <span id="composite-delta" class="delta"></span>
+        </div>
+        <div class="hero-label">Composite Index</div>
+        <div id="hero-month" class="hero-month"></div>
+    </section>
+
+    <!-- Quick metrics row -->
+    <section class="metrics-row">
+        <div class="metric-card">
+            <div class="metric-value" id="sentiment-value">--</div>
+            <div class="metric-label">Sentiment</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" id="vix-value">--</div>
+            <div class="metric-label">VIX</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" id="cpi-value">--</div>
+            <div class="metric-label">CPI YoY</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" id="fx-value">--</div>
+            <div class="metric-label">USD/CNY</div>
+        </div>
+    </section>
+
+    <!-- Composite chart -->
+    <section class="card">
+        <h2>Composite Index Over Time</h2>
+        <div class="chart-container">
+            <canvas id="compositeChart"></canvas>
+        </div>
+    </section>
+
+    <!-- Sub-indicator charts -->
+    <section class="card">
+        <h2>Sub-Indicators</h2>
+        <div class="chart-grid">
+            <div class="chart-container-sm">
+                <h3>NLP Sentiment</h3>
+                <canvas id="sentimentChart"></canvas>
+            </div>
+            <div class="chart-container-sm">
+                <h3>VIX (Global Risk)</h3>
+                <canvas id="vixChart"></canvas>
+            </div>
+            <div class="chart-container-sm">
+                <h3>USD/CNY Change %</h3>
+                <canvas id="fxChart"></canvas>
+            </div>
+            <div class="chart-container-sm">
+                <h3>Keyword Uncertainty</h3>
+                <canvas id="uncertaintyChart"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- PCA Diagnostics -->
+    <section class="card" id="pca-section" style="display:none;">
+        <h2>PCA Diagnostics</h2>
+        <div id="pca-variance" class="pca-info"></div>
+        <div class="chart-container">
+            <canvas id="pcaChart"></canvas>
+        </div>
+    </section>
+
+    <!-- Articles -->
+    <section class="card">
+        <h2>Recent Articles</h2>
+        <select id="month-select" class="month-select"></select>
+        <div id="articles-list" class="articles-list"></div>
+    </section>
+
+    <!-- Refresh button -->
+    <div class="refresh-bar">
+        <button id="refresh-btn" onclick="loadAll()">Refresh</button>
+        <span id="last-updated" class="last-updated"></span>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Data (keep static exports, ignore raw DB)
+data/index.db
+data/index.db-wal
+data/index.db-shm
+data/raw/
+data/pipeline.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# LaTeX build artifacts
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.toc
+docs/*.bbl
+docs/*.blg
+docs/*.fls
+docs/*.fdb_latexmk
+docs/*.synctex.gz
+
+# Config with secrets
+config/settings.yaml
+
+# Env
+.env
+*.env
+
+# Claude
+.claude/
